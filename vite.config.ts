@@ -9,7 +9,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.svg', 'icon-192.svg', 'icon-512.svg'],
       manifest: {
         name: 'Implantat-Inventur',
         short_name: 'Inventur',
@@ -22,19 +22,19 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'icon-192.png',
+            src: 'icon-192.svg',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/svg+xml'
           },
           {
-            src: 'icon-512.png',
+            src: 'icon-512.svg',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/svg+xml'
           },
           {
-            src: 'apple-touch-icon.png',
+            src: 'apple-touch-icon.svg',
             sizes: '180x180',
-            type: 'image/png',
+            type: 'image/svg+xml',
             purpose: 'apple touch icon'
           }
         ]
