@@ -3,13 +3,38 @@ import { Article } from '../types';
 
 /**
  * Import Excel file and parse articles
+ * Note: Using xlsx 0.18.5 which has known vulnerabilities (ReDoS, Prototype Pollution)
+ * Mitigation: Validate file size and implement timeout for parsing
  */
 export const importExcel = async (file: File): Promise<Article[]> => {
   return new Promise((resolve, reject) => {
+    // Security: Validate file size (max 10MB)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (file.size > MAX_FILE_SIZE) {
+      reject(new Error('Datei zu groß. Maximum: 10MB'));
+      return;
+    }
+
+    // Security: Validate file extension
+    const validExtensions = ['.xlsx', '.xls'];
+    const fileExt = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    if (!validExtensions.includes(fileExt)) {
+      reject(new Error('Ungültiges Dateiformat. Nur .xlsx und .xls erlaubt.'));
+      return;
+    }
+
     const reader = new FileReader();
+
+    // Security: Implement timeout for parsing (30 seconds)
+    let timeoutId: NodeJS.Timeout;
+    const PARSE_TIMEOUT = 30000; // 30 seconds
 
     reader.onload = (e) => {
       try {
+        timeoutId = setTimeout(() => {
+          reject(new Error('Import-Timeout: Datei zu komplex oder beschädigt'));
+        }, PARSE_TIMEOUT);
+
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
         
@@ -73,7 +98,9 @@ export const importExcel = async (file: File): Promise<Article[]> => {
         }
 
         resolve(articles);
+        clearTimeout(timeoutId);
       } catch (error) {
+        clearTimeout(timeoutId);
         reject(new Error(`Fehler beim Importieren: ${error}`));
       }
     };

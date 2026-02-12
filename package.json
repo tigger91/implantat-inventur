@@ -16,12 +16,12 @@
     "@zxing/library": "^0.21.3",
     "dexie": "^3.2.4",
     "dexie-react-hooks": "^1.1.7",
-    "jspdf": "^2.5.1",
-    "jspdf-autotable": "^3.8.2",
+    "jspdf": "^4.1.0",
+    "jspdf-autotable": "^5.0.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.21.1",
-    "xlsx": "^0.18.5",
+    "xlsx": "0.18.5",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
