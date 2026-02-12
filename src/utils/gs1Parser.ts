@@ -141,6 +141,7 @@ export const parseGS1DataMatrix = (data: string): ScanResult | null => {
 
 /**
  * Parse GS1 date format (YYMMDD)
+ * Uses a sliding window: years 00-49 map to 2000-2049, years 50-99 map to 1950-1999
  */
 const parseGS1Date = (dateStr: string): Date | undefined => {
   if (!dateStr || dateStr.length !== 6) {
@@ -152,8 +153,10 @@ const parseGS1Date = (dateStr: string): Date | undefined => {
     const month = parseInt(dateStr.substring(2, 4), 10);
     const day = parseInt(dateStr.substring(4, 6), 10);
 
-    // Determine century (assume 2000-2099 for years 00-99)
-    const fullYear = year + 2000;
+    // Sliding window: 00-49 = 2000-2049, 50-99 = 1950-1999
+    const currentYear = new Date().getFullYear();
+    const currentCentury = Math.floor(currentYear / 100) * 100;
+    const fullYear = year < 50 ? currentCentury + year : currentCentury - 100 + year;
 
     const date = new Date(fullYear, month - 1, day);
     

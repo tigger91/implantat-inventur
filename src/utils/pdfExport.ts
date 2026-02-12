@@ -2,6 +2,15 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Article, Statistics } from '../types';
 
+// Extend jsPDF type to include autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    lastAutoTable?: {
+      finalY: number;
+    };
+  }
+}
+
 /**
  * Export inventory report as PDF
  */
@@ -109,7 +118,7 @@ export const exportPDF = (
     }
 
     // Footer with signature field
-    const finalY = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY) || yPos + 20;
+    const finalY = doc.lastAutoTable?.finalY || yPos + 20;
     const footerY = doc.internal.pageSize.getHeight() - 40;
     
     if (finalY < footerY - 30) {

@@ -236,11 +236,14 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   },
 
   getArticleStatus: (article): ArticleStatus => {
-    if (article.abweichung === 0 && article.soll > 0) {
+    // Check if article has been counted (either scanned or manually)
+    const hasBeenCounted = article.gueltigeZaehlung > 0;
+    
+    if (article.abweichung === 0 && article.soll > 0 && hasBeenCounted) {
       return 'complete';
-    } else if (article.istScan > 0 && article.abweichung !== 0) {
+    } else if (hasBeenCounted && article.abweichung !== 0) {
       return 'partial';
-    } else if (article.istScan === 0 && article.abweichung > 0) {
+    } else if (!hasBeenCounted && article.abweichung > 0) {
       return 'missing';
     } else {
       return 'open';

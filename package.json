@@ -14,17 +14,14 @@
   "dependencies": {
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
-    "date-fns": "^3.0.0",
     "dexie": "^3.2.4",
     "dexie-react-hooks": "^1.1.7",
-    "framer-motion": "^10.16.16",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.21.1",
     "xlsx": "^0.18.5",
-    "zod": "^3.22.4",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
