@@ -16,9 +16,9 @@ export default function Dashboard() {
     ? Math.round((statistics.complete / statistics.total) * 100) 
     : 0;
 
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
-      exportExcel(articles);
+      await exportExcel(articles);
     } catch (error) {
       alert('Fehler beim Exportieren der Excel-Datei');
     }

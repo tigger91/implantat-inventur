@@ -1,10 +1,8 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { Article } from '../types';
 
 /**
- * Import Excel file and parse articles
- * Note: Using xlsx 0.18.5 which has known vulnerabilities (ReDoS, Prototype Pollution)
- * Mitigation: Validate file size and implement timeout for parsing
+ * Import Excel file and parse articles using ExcelJS (secure alternative to xlsx)
  */
 export const importExcel = async (file: File): Promise<Article[]> => {
   return new Promise((resolve, reject) => {
@@ -29,60 +27,68 @@ export const importExcel = async (file: File): Promise<Article[]> => {
     let timeoutId: NodeJS.Timeout;
     const PARSE_TIMEOUT = 30000; // 30 seconds
 
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         timeoutId = setTimeout(() => {
           reject(new Error('Import-Timeout: Datei zu komplex oder beschädigt'));
         }, PARSE_TIMEOUT);
 
         const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
+        if (!data) {
+          throw new Error('Keine Daten gefunden');
+        }
+
+        // Parse Excel file with ExcelJS
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(data as ArrayBuffer);
         
-        // Get first sheet
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        
-        // Convert to JSON
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
-          header: 1,
-          raw: false,
-          defval: ''
-        }) as (string | number)[][];
+        // Get first worksheet
+        const worksheet = workbook.worksheets[0];
+        if (!worksheet) {
+          throw new Error('Keine Tabelle gefunden');
+        }
 
-        // Skip header row
-        const dataRows = jsonData.slice(1);
-        
-        const articles: Article[] = dataRows
-          .filter(row => row.length > 0 && row[1]) // Filter empty rows and rows without Materialnummer
-          .map((row) => {
-            const article: Article = {
-              sparte: String(row[0] || ''),
-              materialnummer: String(row[1] || ''),
-              materialbezeichnung: String(row[2] || ''),
-              soll: parseFloat(String(row[3])) || 0,
-              charge: String(row[4] || ''),
-              istScan: 0, // Always reset to 0 on import
-              manuelleZaehlung: parseFloat(String(row[6])) || 0,
-              gueltigeZaehlung: 0, // Will be calculated
-              abweichung: 0, // Will be calculated
-              spalte1: String(row[9] || ''),
-              autoKommentar: '',
-              serialnummer: String(row[11] || ''),
-              kommentarSales: String(row[12] || ''),
-              kommentarSCM: String(row[13] || '')
-            };
+        const articles: Article[] = [];
 
-            // Calculate computed fields
-            article.gueltigeZaehlung = article.istScan + article.manuelleZaehlung;
-            article.abweichung = article.soll - article.gueltigeZaehlung;
-            article.autoKommentar = generateAutoComment(article);
+        // Skip header row (row 1), start from row 2
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return; // Skip header
+          
+          // Get cell values
+          const values = row.values as (string | number | Date | null)[];
+          
+          // Skip empty rows or rows without Materialnummer
+          if (!values || values.length < 2 || !values[2]) return;
 
-            return article;
-          });
+          const article: Article = {
+            sparte: String(values[1] || ''),
+            materialnummer: String(values[2] || ''),
+            materialbezeichnung: String(values[3] || ''),
+            soll: parseFloat(String(values[4] || '0')) || 0,
+            charge: String(values[5] || ''),
+            istScan: 0, // Always reset to 0 on import
+            manuelleZaehlung: parseFloat(String(values[7] || '0')) || 0,
+            gueltigeZaehlung: 0, // Will be calculated
+            abweichung: 0, // Will be calculated
+            spalte1: String(values[10] || ''),
+            autoKommentar: '',
+            serialnummer: String(values[12] || ''),
+            kommentarSales: String(values[13] || ''),
+            kommentarSCM: String(values[14] || '')
+          };
 
-        // Validate required columns
+          // Calculate computed fields
+          article.gueltigeZaehlung = article.istScan + article.manuelleZaehlung;
+          article.abweichung = article.soll - article.gueltigeZaehlung;
+          article.autoKommentar = generateAutoComment(article);
+
+          articles.push(article);
+        });
+
+        // Validate required data
         if (articles.length === 0) {
           reject(new Error('Keine gültigen Artikel gefunden. Bitte prüfen Sie die Excel-Struktur.'));
+          clearTimeout(timeoutId);
           return;
         }
 
@@ -94,6 +100,7 @@ export const importExcel = async (file: File): Promise<Article[]> => {
 
         if (!hasRequiredColumns) {
           reject(new Error('Fehlende Pflichtfelder (Materialnummer, SOLL). Bitte prüfen Sie die Excel-Datei.'));
+          clearTimeout(timeoutId);
           return;
         }
 
@@ -109,76 +116,64 @@ export const importExcel = async (file: File): Promise<Article[]> => {
       reject(new Error('Fehler beim Lesen der Datei'));
     };
 
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   });
 };
 
 /**
- * Export articles to Excel file
+ * Export articles to Excel file using ExcelJS
  */
-export const exportExcel = (articles: Article[], filename?: string): void => {
+export const exportExcel = async (articles: Article[], filename?: string): Promise<void> => {
   try {
-    // Prepare data with headers
-    const headers = [
-      'Sparte',
-      'Materialnummer',
-      'Materialbezeichnung',
-      'SOLL',
-      'Charge',
-      'IST Scan',
-      'Manuelle Zählung',
-      'Gültige Zählung',
-      'Abweichung',
-      'Spalte1',
-      'Auto. Kommentar',
-      'Serialnummer(n)',
-      'Kommentar Sales',
-      'Kommentar SCM'
+    // Create workbook and worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Inventur');
+
+    // Set column widths and headers
+    worksheet.columns = [
+      { header: 'Sparte', key: 'sparte', width: 10 },
+      { header: 'Materialnummer', key: 'materialnummer', width: 15 },
+      { header: 'Materialbezeichnung', key: 'materialbezeichnung', width: 40 },
+      { header: 'SOLL', key: 'soll', width: 8 },
+      { header: 'Charge', key: 'charge', width: 12 },
+      { header: 'IST Scan', key: 'istScan', width: 10 },
+      { header: 'Manuelle Zählung', key: 'manuelleZaehlung', width: 15 },
+      { header: 'Gültige Zählung', key: 'gueltigeZaehlung', width: 15 },
+      { header: 'Abweichung', key: 'abweichung', width: 12 },
+      { header: 'Spalte1', key: 'spalte1', width: 10 },
+      { header: 'Auto. Kommentar', key: 'autoKommentar', width: 25 },
+      { header: 'Serialnummer(n)', key: 'serialnummer', width: 20 },
+      { header: 'Kommentar Sales', key: 'kommentarSales', width: 20 },
+      { header: 'Kommentar SCM', key: 'kommentarSCM', width: 20 }
     ];
 
-    const data = articles.map(article => [
-      article.sparte,
-      article.materialnummer,
-      article.materialbezeichnung,
-      article.soll,
-      article.charge,
-      article.istScan,
-      article.manuelleZaehlung,
-      article.gueltigeZaehlung,
-      article.abweichung,
-      article.spalte1,
-      article.autoKommentar,
-      article.serialnummer,
-      article.kommentarSales,
-      article.kommentarSCM
-    ]);
+    // Style header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9E9F7' }
+    };
 
-    const wsData = [headers, ...data];
-    
-    // Create worksheet
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    
-    // Set column widths
-    ws['!cols'] = [
-      { wch: 10 },  // Sparte
-      { wch: 15 },  // Materialnummer
-      { wch: 40 },  // Materialbezeichnung
-      { wch: 8 },   // SOLL
-      { wch: 12 },  // Charge
-      { wch: 10 },  // IST Scan
-      { wch: 15 },  // Manuelle Zählung
-      { wch: 15 },  // Gültige Zählung
-      { wch: 12 },  // Abweichung
-      { wch: 10 },  // Spalte1
-      { wch: 25 },  // Auto. Kommentar
-      { wch: 20 },  // Serialnummer
-      { wch: 20 },  // Kommentar Sales
-      { wch: 20 }   // Kommentar SCM
-    ];
-
-    // Create workbook
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Inventur');
+    // Add data rows
+    articles.forEach(article => {
+      worksheet.addRow({
+        sparte: article.sparte,
+        materialnummer: article.materialnummer,
+        materialbezeichnung: article.materialbezeichnung,
+        soll: article.soll,
+        charge: article.charge,
+        istScan: article.istScan,
+        manuelleZaehlung: article.manuelleZaehlung,
+        gueltigeZaehlung: article.gueltigeZaehlung,
+        abweichung: article.abweichung,
+        spalte1: article.spalte1,
+        autoKommentar: article.autoKommentar,
+        serialnummer: article.serialnummer,
+        kommentarSales: article.kommentarSales,
+        kommentarSCM: article.kommentarSCM
+      });
+    });
 
     // Generate filename
     const now = new Date();
@@ -186,8 +181,19 @@ export const exportExcel = (articles: Article[], filename?: string): void => {
     const timeStr = now.toTimeString().split(':').slice(0, 2).join('-');
     const fileName = filename || `Inventur_${dateStr}_${timeStr}.xlsx`;
 
-    // Export file
-    XLSX.writeFile(wb, fileName);
+    // Generate buffer and download
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    
+    // Create download link
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    
+    // Cleanup
+    window.URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Error exporting Excel:', error);
     throw new Error('Fehler beim Exportieren der Excel-Datei');
