@@ -109,7 +109,7 @@ export const exportPDF = (
     }
 
     // Footer with signature field
-    const finalY = (doc as any).lastAutoTable?.finalY || yPos + 20;
+    const finalY = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY) || yPos + 20;
     const footerY = doc.internal.pageSize.getHeight() - 40;
     
     if (finalY < footerY - 30) {

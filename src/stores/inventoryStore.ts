@@ -29,7 +29,7 @@ interface InventoryState {
   findArticle: (lot: string, ref?: string) => Article | null;
   incrementArticleScan: (articleId: number) => Promise<void>;
   updateArticleManual: (articleId: number, manualCount: number) => Promise<void>;
-  updateArticleField: (articleId: number, field: keyof Article, value: any) => Promise<void>;
+  updateArticleField: (articleId: number, field: keyof Article, value: string | number) => Promise<void>;
   calculateStatistics: () => void;
   setScanning: (scanning: boolean) => void;
   toggleFlashlight: () => void;

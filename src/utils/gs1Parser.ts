@@ -32,7 +32,7 @@ export const parseGS1DataMatrix = (data: string): ScanResult | null => {
     };
 
     // Remove FNC1 character if present at the start
-    let cleanData = data.startsWith(']d2') ? data.substring(3) : data;
+    const cleanData = data.startsWith(']d2') ? data.substring(3) : data;
     
     // Parse each AI
     let position = 0;

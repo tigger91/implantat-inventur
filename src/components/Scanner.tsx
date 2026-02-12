@@ -44,6 +44,7 @@ export default function Scanner() {
     return () => {
       cleanup();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -52,14 +53,14 @@ export default function Scanner() {
       const capabilities = track.getCapabilities();
       if ('torch' in capabilities) {
         track.applyConstraints({
-          // @ts-ignore - torch is not in standard types yet
+          // @ts-expect-error - torch is not in standard types yet
           advanced: [{ torch: true }]
         }).catch(err => console.error('Error enabling torch:', err));
       }
     } else if (!flashlightOn && streamRef.current) {
       const track = streamRef.current.getVideoTracks()[0];
       track.applyConstraints({
-        // @ts-ignore
+        // @ts-expect-error - torch is not in standard types yet
         advanced: [{ torch: false }]
       }).catch(err => console.error('Error disabling torch:', err));
     }
@@ -225,7 +226,7 @@ export default function Scanner() {
   };
 
   const playBeep = () => {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
     

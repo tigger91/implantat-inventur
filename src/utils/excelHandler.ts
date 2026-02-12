@@ -18,11 +18,11 @@ export const importExcel = async (file: File): Promise<Article[]> => {
         const worksheet = workbook.Sheets[sheetName];
         
         // Convert to JSON
-        const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { 
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
           header: 1,
           raw: false,
           defval: ''
-        });
+        }) as (string | number)[][];
 
         // Skip header row
         const dataRows = jsonData.slice(1);
@@ -34,10 +34,10 @@ export const importExcel = async (file: File): Promise<Article[]> => {
               sparte: String(row[0] || ''),
               materialnummer: String(row[1] || ''),
               materialbezeichnung: String(row[2] || ''),
-              soll: parseFloat(row[3]) || 0,
+              soll: parseFloat(String(row[3])) || 0,
               charge: String(row[4] || ''),
               istScan: 0, // Always reset to 0 on import
-              manuelleZaehlung: parseFloat(row[6]) || 0,
+              manuelleZaehlung: parseFloat(String(row[6])) || 0,
               gueltigeZaehlung: 0, // Will be calculated
               abweichung: 0, // Will be calculated
               spalte1: String(row[9] || ''),
